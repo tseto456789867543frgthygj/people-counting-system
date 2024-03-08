@@ -1,0 +1,120 @@
+#include <avr/io.h>
+#include <util/delay.h>
+#include <stdio.h>
+#define LCD_DPRT PORTA
+#define LCD_DDDR DDRA
+#define LCD_CPRT PORTD
+#define LCD_CDDR DDRD
+#define LCD_RW 5
+#define LCD_RS 6
+#define LCD_EN 7
+void lcdCommand(unsigned char cmnd)
+{
+    LCD_DPRT = cmnd;
+    LCD_CPRT &= ~(1 << LCD_RS);
+    LCD_CPRT &= ~(1 << LCD_RW);
+    LCD_CPRT |= (1 << LCD_EN);
+    _delay_us(1);
+    LCD_CPRT &= ~(1 << LCD_EN);
+    _delay_ms(1);
+}
+
+void lcdData(unsigned char data)
+{
+    LCD_DPRT = data;
+    LCD_CPRT |= (1 << LCD_RS);
+    LCD_CPRT &= ~(1 << LCD_RW);
+    LCD_CPRT |= (1 << LCD_EN);
+    _delay_us(1);
+    LCD_CPRT &= ~(1 << LCD_EN);
+    _delay_ms(1);
+}
+
+void lcd_init()
+{
+    LCD_DDDR = 0xFF;
+    LCD_CDDR = 0xFF;
+    LCD_CPRT &= ~(1 << LCD_EN);
+    _delay_us(1);
+    lcdCommand(0x38);
+    lcdCommand(0x0E);
+    lcdCommand(0x01);
+    _delay_us(2);
+    lcdCommand(0x06);
+}
+void lcd_gotoxy(unsigned char x, unsigned char y)
+{
+    unsigned char firstCharAdr[] = {0x80, 0xC0, 0x94, 0xD4};
+    lcdCommand(firstCharAdr[y - 1] + x - 1);
+    _delay_us(2);
+}
+void lcd_print(char *str)
+{
+    unsigned char i = 0;
+    while (str[i] != 0)
+    {
+        lcdData(str[i]);
+        i++;
+    }
+}
+
+int main(void)
+{
+    char IN[16]; 
+    char OUT[16];    
+    DDRB = 0x00;
+    TCCR0 = 0x07;
+    TCCR1A = 0x07;
+    TCCR1B = 0X07;
+    TCNT0 = 0;
+    TCNT1H = 0;
+    TCNT1L = 0;
+    lcd_init();
+
+    unsigned int a = 0;
+    unsigned int b = 0;
+    
+    while (1)
+    {
+
+        // "IN" increment
+        if (TCNT0 > 0)
+        {
+            TCNT0 = 1;
+			
+            while (TCNT1 == 0)
+            {
+                _delay_ms(10);
+				
+
+            }
+			
+            a = a + 1; 
+            TCNT0 = 0;
+            TCNT1 = 0;
+            snprintf(IN, sizeof(IN), "IN: %u", a);
+            lcd_gotoxy(1, 1);
+            lcd_print(IN);
+            _delay_ms(250);
+        }
+
+        // "OUT" increment
+        if (TCNT1 > 0)
+        {
+            TCNT1 = 1;
+            while (TCNT0 == 0)
+            {
+                _delay_ms(10);
+				
+            }
+			
+            b = b + 1;
+            TCNT1 = 0;
+            TCNT0 = 0;
+            snprintf(OUT, sizeof(OUT), "OUT: %u", b);
+            lcd_gotoxy(1, 2);
+            lcd_print(OUT);
+            _delay_ms(250);
+        }
+    }
+}
